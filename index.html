@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Grand Staff Sprint</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Noto+Music&display=swap">
+<style>
+/* Layout: one centered practice column — settings strip, timer bar, staff card, answer pad. */
+:root {
+  --paper: #f3f5f9; --card: #ffffff; --ink: #161d2b; --muted: #5a6477; --line: #cdd3de;
+  --felt: #8e1f30; --felt-soft: #f4e3e6; --good: #2b7a4b; --bad: #c73a26; --key: #ffffff; --key-edge: #b9c0cd;
+  --display: "Gloock", Georgia, serif;
+  --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --music: "Noto Music", "Bravura Text", "Segoe UI Symbol", serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0f131b; --card: #171d28; --ink: #e7eaf0; --muted: #9aa3b4; --line: #343c4b;
+  --felt: #e3707f; --felt-soft: #3a1f26; --good: #5cc28a; --bad: #f2806a; --key: #1f2633; --key-edge: #3d4657; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #0f131b; --card: #171d28; --ink: #e7eaf0; --muted: #9aa3b4; --line: #343c4b;
+  --felt: #e3707f; --felt-soft: #3a1f26; --good: #5cc28a; --bad: #f2806a; --key: #1f2633; --key-edge: #3d4657; color-scheme: dark; }
+
+html, body { min-height: 100%; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+.wrap { max-width: 640px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font: 400 clamp(26px, 6vw, 34px)/1.1 var(--display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h1 span { color: var(--felt); }
+.best { font: 500 12px var(--mono); color: var(--muted); }
+
+.settings { display: grid; gap: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); min-width: 64px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
+.chip span { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 500; cursor: pointer; user-select: none; background: var(--card); }
+.chip input:checked + span { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.chip input:focus-visible + span { outline: 2px solid var(--felt); outline-offset: 2px; }
+.chip input:disabled + span { opacity: .4; cursor: default; }
+
+.hud { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat { display: grid; gap: 0; }
+.stat b { font: 700 22px var(--mono); font-variant-numeric: tabular-nums; }
+.stat small { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 100%; background: var(--felt); transform-origin: left; }
+.cardbar { height: 3px; background: transparent; }
+.cardbar i { display: block; height: 100%; background: var(--muted); transform-origin: left; opacity: .5; }
+
+.stage { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 8px 4px; }
+.stage svg { display: block; width: 100%; height: auto; }
+.prompt { text-align: center; font-size: 13px; color: var(--muted); min-height: 22px; padding-bottom: 6px; font-weight: 500; }
+.prompt.good { color: var(--good); } .prompt.bad { color: var(--bad); }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--card) 72%, transparent); border-radius: 14px; }
+[hidden] { display: none !important; }
+.start { font: 600 16px var(--body); background: var(--felt); color: #fff; border: 0; border-radius: 999px; padding: 12px 28px; cursor: pointer; }
+:root[data-theme="dark"] .start { color: #1a0d10; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .start { color: #1a0d10; } }
+.start:focus-visible, button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.pad { display: grid; gap: 10px; }
+.keys { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.keys button { font: 600 20px var(--display); height: 64px; border-radius: 0 0 10px 10px; border: 1px solid var(--key-edge); border-top: 3px solid var(--ink); background: var(--key); color: var(--ink); cursor: pointer; }
+.keys button:active { transform: translateY(1px); }
+.keys button.on { background: var(--ink); color: var(--paper); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.seg button { font: 600 14px var(--body); padding: 10px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); cursor: pointer; }
+.seg button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.go { font: 600 15px var(--body); padding: 12px; border: 0; border-radius: 10px; background: var(--felt); color: #fff; cursor: pointer; }
+.go:disabled { opacity: .35; cursor: default; }
+.hint { font-size: 12px; color: var(--muted); text-align: center; }
+
+.results { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; }
+.results h2 { font: 400 24px var(--display); margin: 0; }
+.results .big { display: flex; gap: 24px; flex-wrap: wrap; }
+.results .big div b { font: 700 28px var(--mono); display: block; font-variant-numeric: tabular-nums; }
+.results .big div small { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.missed { display: flex; flex-wrap: wrap; gap: 6px; }
+.missed span { font: 500 12px var(--mono); padding: 3px 8px; border-radius: 6px; background: var(--felt-soft); color: var(--felt); }
+.toggle { background: none; border: 0; color: var(--muted); font: 500 12px var(--body); cursor: pointer; text-decoration: underline; padding: 0; }
+@media (max-width: 420px) { .keys button { height: 56px; font-size: 18px; } .stat b { font-size: 18px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Grand Staff <span>Sprint</span></h1>
+    <div class="best" id="best">Best: —</div>
+  </header>
+
+  <div class="settings" id="settings">
+    <div class="row"><span class="label">Clefs</span>
+      <label class="chip"><input type="checkbox" id="optTreble" checked><span>𝄞 Treble</span></label>
+      <label class="chip"><input type="checkbox" id="optBass" checked><span>𝄢 Bass</span></label>
+    </div>
+    <div class="row"><span class="label">Cards</span>
+      <label class="chip"><input type="checkbox" id="optNotes" checked><span>Single notes</span></label>
+      <label class="chip"><input type="checkbox" id="optChords"><span>Chords</span></label>
+      <label class="chip"><input type="checkbox" id="optInv"><span>Inversions</span></label>
+    </div>
+    <div class="row"><span class="label">Session</span>
+      <label class="chip"><input type="radio" name="dur" id="dur30" value="30"><span>30 s</span></label>
+      <label class="chip"><input type="radio" name="dur" id="dur60" value="60" checked><span>60 s</span></label>
+      <label class="chip"><input type="radio" name="dur" id="dur120" value="120"><span>2 min</span></label>
+      <label class="chip"><input type="radio" name="dur" id="dur300" value="300"><span>5 min</span></label>
+    </div>
+    <div class="row"><span class="label">Per card</span>
+      <label class="chip"><input type="radio" name="lim" id="lim0" value="0" checked><span>No limit</span></label>
+      <label class="chip"><input type="radio" name="lim" id="lim3" value="3"><span>3 s</span></label>
+      <label class="chip"><input type="radio" name="lim" id="lim5" value="5"><span>5 s</span></label>
+      <label class="chip"><input type="radio" name="lim" id="lim10" value="10"><span>10 s</span></label>
+      <label class="chip"><input type="checkbox" id="optSound" checked><span>Sound</span></label>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="stat"><b id="hTime">1:00</b><small>Time left</small></div>
+    <div class="stat"><b id="hScore">0</b><small>Correct</small></div>
+    <div class="stat"><b id="hAcc">—</b><small>Accuracy</small></div>
+    <div class="stat"><b id="hStreak">0</b><small>Streak</small></div>
+  </div>
+  <div class="bar"><i id="timeBar"></i></div>
+
+  <div class="stage">
+    <div id="staff"></div>
+    <div class="cardbar"><i id="cardBar" style="transform:scaleX(0)"></i></div>
+    <div class="prompt" id="prompt">Name the note</div>
+    <div class="overlay" id="overlay"><button class="start" id="startBtn">Start</button></div>
+  </div>
+
+  <div class="results" id="results" hidden></div>
+
+  <div class="pad" id="pad">
+    <div class="keys" id="keys"></div>
+    <div class="seg" id="qualRow" hidden>
+      <button data-q="maj">Major</button><button data-q="min">Minor</button>
+    </div>
+    <div class="seg" id="invRow" hidden>
+      <button data-i="0">Root pos.</button><button data-i="1">1st inv.</button><button data-i="2">2nd inv.</button>
+    </div>
+    <button class="go" id="goBtn" hidden disabled>Submit chord</button>
+    <div class="hint" id="hint">Tap a letter or press A–G on your keyboard</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const LET = "CDEFGAB";
+  const NAT = [0, 2, 4, 5, 7, 9, 11];
+  // Diatonic step = letterIndex + 7 * octave. Treble bottom line E4, bass bottom line G2.
+  const CLEF = {
+    treble: { bottom: 30, lo: 26, hi: 42 },   // A3 … C6  (17 notes)
+    bass:   { bottom: 18, lo: 14, hi: 29 },   // C2 … D4  (16 notes)
+  };
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  };
+
+  const nameOf = (step, acc = 0) => LET[step % 7] + (acc > 0 ? "♯" : acc < 0 ? "♭" : "") + Math.floor(step / 7);
+  const midiOf = (step, acc = 0) => 12 * (Math.floor(step / 7) + 1) + NAT[step % 7] + acc;
+
+  // ---------- deck ----------
+  function opts() {
+    return {
+      treble: $("optTreble").checked, bass: $("optBass").checked,
+      notes: $("optNotes").checked, chords: $("optChords").checked, inv: $("optInv").checked,
+      dur: +document.querySelector("input[name=dur]:checked").value,
+      lim: +document.querySelector("input[name=lim]:checked").value,
+      sound: $("optSound").checked,
+    };
+  }
+  function buildChord(clef, rootIdx, qual, inv) {
+    const c = CLEF[clef];
+    let r = rootIdx + 7 * (clef === "treble" ? 4 : 3);
+    const ivals = [0, qual === "maj" ? 4 : 3, 7];
+    const tones = [0, 2, 4].map((d, i) => ({ d, semi: (NAT[rootIdx] + ivals[i]) % 12 }));
+    const order = inv === 0 ? [[0, 0], [1, 0], [2, 0]] : inv === 1 ? [[1, 0], [2, 0], [0, 7]] : [[2, 0], [0, 7], [1, 7]];
+    let steps = order.map(([t, up]) => tones[t].d + up);
+    const place = off => steps.map(s => r + s + off);
+    let off = 0;
+    while (Math.max(...place(off)) > c.bottom + 12) off -= 7;
+    while (Math.min(...place(off)) < c.bottom - 4) off += 7;
+    return order.map(([t], i) => {
+      const step = place(off)[i];
+      let acc = (tones[t].semi - NAT[step % 7] + 12) % 12; if (acc > 6) acc -= 12;
+      return { step, acc };
+    });
+  }
+  function buildDeck(o) {
+    const clefs = [o.treble && "treble", o.bass && "bass"].filter(Boolean);
+    const deck = [];
+    for (const clef of clefs) {
+      if (o.notes) for (let s = CLEF[clef].lo; s <= CLEF[clef].hi; s++)
+        deck.push({ kind: "note", clef, tones: [{ step: s, acc: 0 }], letter: LET[s % 7], label: nameOf(s) });
+      if (o.chords || o.inv) {
+        const invs = o.inv ? (o.chords ? [0, 1, 2] : [1, 2]) : [0];
+        for (let ri = 0; ri < 7; ri++) for (const q of ["maj", "min"]) for (const inv of invs)
+          deck.push({ kind: "chord", clef, root: LET[ri], qual: q, inv, tones: buildChord(clef, ri, q, inv),
+            label: `${LET[ri]} ${q === "maj" ? "major" : "minor"}${inv ? `, ${inv === 1 ? "1st" : "2nd"} inv.` : ""}` });
+      }
+    }
+    return deck;
+  }
+
+  // ---------- staff drawing ----------
+  const W = 360, H = 176, SP = 12, HS = 6, TOP = 52, BOT = TOP + 4 * SP, NX = 210;
+  function staffSVG(card, state) {
+    const c = CLEF[card.clef];
+    const y = s => BOT - (s - c.bottom) * HS;
+    let g = "";
+    for (let i = 0; i < 5; i++) g += `<line x1="8" x2="${W - 8}" y1="${TOP + i * SP}" y2="${TOP + i * SP}" />`;
+    g += `<line x1="8" x2="8" y1="${TOP}" y2="${BOT}" /><line x1="${W - 8}" x2="${W - 8}" y1="${TOP}" y2="${BOT}" />`;
+    // clef glyph
+    g += card.clef === "treble"
+      ? `<text class="clef" x="14" y="${BOT - 3}" font-size="70">𝄞</text>`
+      : `<text class="clef" x="16" y="${BOT + 2}" font-size="68">𝄢</text>`;
+    // ledger lines
+    const steps = card.tones.map(t => t.step);
+    const mn = Math.min(...steps), mx = Math.max(...steps);
+    for (let s = c.bottom - 2; s >= mn; s -= 2) g += `<line class="ledger" x1="${NX - 15}" x2="${NX + 15}" y1="${y(s)}" y2="${y(s)}" />`;
+    for (let s = c.bottom + 10; s <= mx; s += 2) g += `<line class="ledger" x1="${NX - 15}" x2="${NX + 15}" y1="${y(s)}" y2="${y(s)}" />`;
+    // accidentals, stacked into columns so they don't collide
+    const sorted = [...card.tones].sort((a, b) => b.step - a.step);
+    let col = 0, last = null;
+    for (const t of sorted) {
+      if (!t.acc) continue;
+      col = last !== null && last - t.step < 6 ? col + 1 : 0; last = t.step;
+      g += `<text class="acc" x="${NX - 22 - col * 13}" y="${y(t.step) + (t.acc > 0 ? 8 : 4)}" font-size="24" text-anchor="middle">${t.acc > 0 ? "♯" : "♭"}</text>`;
+    }
+    // whole-note heads
+    const cls = state ? ` ${state}` : "";
+    for (const t of card.tones) {
+      const cy = y(t.step);
+      g += `<g class="head${cls}" transform="translate(${NX} ${cy})"><ellipse rx="8.6" ry="5.8" /><ellipse class="hole" rx="4.2" ry="2.6" transform="rotate(-50)" /></g>`;
+    }
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${card.clef} staff card">
+      <style>line{stroke:var(--ink);stroke-width:1.2}.ledger{stroke-width:1.4}.clef,.acc{fill:var(--ink);font-family:var(--music)}
+      .head ellipse{fill:var(--ink)}.head .hole{fill:var(--card)}.head.good ellipse:not(.hole){fill:var(--good)}.head.bad ellipse:not(.hole){fill:var(--bad)}</style>${g}</svg>`;
+  }
+
+  // ---------- sound ----------
+  let ctx = null;
+  function play(card) {
+    if (!S.o.sound) return;
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = ctx.currentTime;
+      card.tones.forEach(t => {
+        const f = 440 * Math.pow(2, (midiOf(t.step, t.acc) - 69) / 12);
+        for (const [type, mult, vol] of [["triangle", 1, 0.22], ["sine", 2, 0.06]]) {
+          const o = ctx.createOscillator(), gn = ctx.createGain();
+          o.type = type; o.frequency.value = f * mult;
+          gn.gain.setValueAtTime(0, now); gn.gain.linearRampToValueAtTime(vol / card.tones.length * 1.6, now + 0.01);
+          gn.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
+          o.connect(gn).connect(ctx.destination); o.start(now); o.stop(now + 1.5);
+        }
+      });
+    } catch {}
+  }
+
+  // ---------- game state ----------
+  const S = { o: opts(), running: false, deck: [], card: null, prev: null, ans: {}, locked: false,
+    right: 0, total: 0, streak: 0, bestStreak: 0, times: [], missed: {}, end: 0, cardStart: 0, timer: null };
+
+  const configKey = o => `gss-best:${[o.treble && "T", o.bass && "B", o.notes && "N", o.chords && "C", o.inv && "I"].filter(Boolean).join("")}:${o.dur}:${o.lim}`;
+  function showBest() {
+    const b = store.get(configKey(S.o));
+    $("best").textContent = b ? `Best for these settings: ${b}` : "Best: —";
+  }
+
+  function drawPad() {
+    const chord = S.card && S.card.kind === "chord";
+    const keys = $("keys");
+    keys.innerHTML = LET.split("").map(l => `<button data-l="${l}" class="${S.ans.root === l ? "on" : ""}">${l}</button>`).join("");
+    $("qualRow").hidden = !chord; $("goBtn").hidden = !chord;
+    $("invRow").hidden = !(chord && S.o.inv);
+    document.querySelectorAll("#qualRow button").forEach(b => b.classList.toggle("on", S.ans.qual === b.dataset.q));
+    document.querySelectorAll("#invRow button").forEach(b => b.classList.toggle("on", S.ans.inv === +b.dataset.i));
+    $("goBtn").disabled = !(S.ans.root && S.ans.qual && (!S.o.inv || S.ans.inv !== undefined));
+    $("hint").textContent = chord ? "Pick the root, quality" + (S.o.inv ? ", and inversion" : "") + " — then submit (Enter)" : "Tap a letter or press A–G on your keyboard";
+  }
+  function render(state) {
+    $("staff").innerHTML = staffSVG(S.card, state);
+    if (!state) $("prompt").className = "prompt", $("prompt").textContent = S.card.kind === "chord" ? "Name the chord" : "Name the note";
+    drawPad();
+  }
+
+  function nextCard() {
+    let c; do { c = S.deck[Math.floor(Math.random() * S.deck.length)]; } while (S.deck.length > 1 && c === S.prev);
+    S.prev = S.card = c; S.ans = {}; S.locked = false; S.cardStart = performance.now();
+    render();
+  }
+
+  function hud() {
+    const left = Math.max(0, S.end - performance.now()) / 1000;
+    const secs = S.running ? Math.ceil(left) : S.o.dur;
+    $("hTime").textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+    $("timeBar").style.transform = `scaleX(${S.running ? left / S.o.dur : 1})`;
+    $("hScore").textContent = S.right;
+    $("hAcc").textContent = S.total ? Math.round(100 * S.right / S.total) + "%" : "—";
+    $("hStreak").textContent = S.streak;
+    if (S.running && S.o.lim && !S.locked) {
+      const used = (performance.now() - S.cardStart) / 1000;
+      $("cardBar").style.transform = `scaleX(${Math.max(0, 1 - used / S.o.lim)})`;
+      if (used >= S.o.lim) judge(false, true);
+    } else if (!S.o.lim) $("cardBar").style.transform = "scaleX(0)";
+    if (S.running && left <= 0 && !S.locked) finish();
+  }
+
+  function judge(ok, timedOut = false) {
+    if (S.locked || !S.running) return;
+    S.locked = true; S.total++;
+    S.times.push((performance.now() - S.cardStart) / 1000);
+    if (ok) { S.right++; S.streak++; S.bestStreak = Math.max(S.bestStreak, S.streak); }
+    else { S.streak = 0; S.missed[S.card.label] = (S.missed[S.card.label] || 0) + 1; }
+    render(ok ? "good" : "bad");
+    const p = $("prompt");
+    p.className = "prompt " + (ok ? "good" : "bad");
+    p.textContent = ok ? `✓ ${S.card.label}` : `${timedOut ? "Time — " : "✗ "}it was ${S.card.label}`;
+    play(S.card);
+    hud();
+    setTimeout(() => { if (!S.running) return; if (performance.now() >= S.end) finish(); else nextCard(); }, ok ? 450 : 1300);
+  }
+
+  function answerNote(l) {
+    if (!S.running || S.locked || !S.card) return;
+    if (S.card.kind === "note") return judge(l === S.card.letter);
+    S.ans.root = l; drawPad();
+  }
+  function submitChord() {
+    const c = S.card, a = S.ans;
+    if (!S.running || S.locked || c.kind !== "chord" || $("goBtn").disabled) return;
+    judge(a.root === c.root && a.qual === c.qual && (!S.o.inv || a.inv === c.inv));
+  }
+
+  function start() {
+    S.o = opts();
+    if (!S.o.treble && !S.o.bass) { $("prompt").textContent = "Pick at least one clef"; return; }
+    if (!S.o.notes && !S.o.chords && !S.o.inv) { $("prompt").textContent = "Pick notes, chords or inversions"; return; }
+    S.deck = buildDeck(S.o);
+    Object.assign(S, { running: true, right: 0, total: 0, streak: 0, bestStreak: 0, times: [], missed: {}, end: performance.now() + S.o.dur * 1000 });
+    $("overlay").hidden = true; $("results").hidden = true;
+    document.querySelectorAll("#settings input").forEach(i => i.disabled = true);
+    try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); } catch {}
+    nextCard();
+    clearInterval(S.timer); S.timer = setInterval(hud, 50); hud();
+  }
+
+  function finish() {
+    if (!S.running) return;
+    S.running = false; clearInterval(S.timer); hud();
+    document.querySelectorAll("#settings input").forEach(i => i.disabled = false);
+    syncInv();
+    const avg = S.times.length ? (S.times.reduce((a, b) => a + b, 0) / S.times.length).toFixed(2) : "—";
+    const key = configKey(S.o), prev = store.get(key) || 0, isBest = S.right > prev;
+    if (isBest) store.set(key, S.right);
+    const missed = Object.entries(S.missed).sort((a, b) => b[1] - a[1]);
+    const r = $("results");
+    r.innerHTML = `<h2>${isBest && S.right ? "New best!" : "Time’s up"}</h2>
+      <div class="big">
+        <div><b>${S.right}</b><small>Correct</small></div>
+        <div><b>${S.total ? Math.round(100 * S.right / S.total) : 0}%</b><small>Accuracy</small></div>
+        <div><b>${avg}${avg === "—" ? "" : "s"}</b><small>Avg per card</small></div>
+        <div><b>${S.bestStreak}</b><small>Best streak</small></div>
+      </div>
+      ${missed.length ? `<div><div class="label" style="margin-bottom:6px">Practice these</div><div class="missed">${missed.map(([k, n]) => `<span>${k}${n > 1 ? " ×" + n : ""}</span>`).join("")}</div></div>` : `<div class="label">No misses — try a shorter per-card limit.</div>`}`;
+    r.hidden = false;
+    $("overlay").hidden = false; $("startBtn").textContent = "Go again";
+    showBest();
+  }
+
+  // ---------- wiring ----------
+  function syncInv() {
+    // Inversions require chords to be meaningful; keep the deck non-empty.
+    if (S.running) return;
+    S.o = opts(); showBest(); hud();
+  }
+  document.querySelectorAll("#settings input").forEach(i => i.addEventListener("change", syncInv));
+  $("startBtn").addEventListener("click", start);
+  $("keys").addEventListener("click", e => { const b = e.target.closest("button"); if (b) answerNote(b.dataset.l); });
+  $("qualRow").addEventListener("click", e => { const b = e.target.closest("button"); if (b && S.running && !S.locked) { S.ans.qual = b.dataset.q; drawPad(); } });
+  $("invRow").addEventListener("click", e => { const b = e.target.closest("button"); if (b && S.running && !S.locked) { S.ans.inv = +b.dataset.i; drawPad(); } });
+  $("goBtn").addEventListener("click", submitChord);
+  document.addEventListener("keydown", e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toUpperCase();
+    if (!S.running && (e.key === "Enter" || e.key === " ") && document.activeElement === document.body) { e.preventDefault(); return start(); }
+    if (!S.running) return;
+    if (LET.includes(k) && k.length === 1) { e.preventDefault(); answerNote(k); }
+    else if (S.card?.kind === "chord") {
+      if (e.key === "M" || k === "J") { S.ans.qual = "maj"; drawPad(); }
+      else if (e.key === "m" || k === "N") { S.ans.qual = "min"; drawPad(); }
+      else if (["0", "1", "2"].includes(e.key) && S.o.inv) { S.ans.inv = +e.key; drawPad(); }
+      else if (e.key === "Enter") { e.preventDefault(); submitChord(); }
+    }
+  });
+
+  // Resting state: a sample card so the page shows what it does.
+  S.card = { kind: "note", clef: "treble", tones: [{ step: 32, acc: 0 }], letter: "G", label: "G4" };
+  render(); showBest(); hud();
+})();
+</script>
+
+</body>
+</html>
