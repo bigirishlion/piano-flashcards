@@ -13,9 +13,10 @@ Timed piano note-reading flashcards. Open `index.html` in any browser, or serve 
 - Chords: pick root, Major/Minor (keys M / m), inversion (keys 0 / 1 / 2), then Submit (Enter).
 - Results show score, accuracy, average time per card, best streak and the cards you missed.
 
-## History
-Every finished session is saved in your browser's local storage (per device). The History panel shows:
-- a chart of your last 30 sessions (correct, accuracy, or seconds per card), for the current settings or all sessions
+## Stats
+Every finished session is saved in your browser's local storage (per device). Tap **Stats** (top right, or `#stats`) to see:
+- a trend badge comparing your last 5 sessions with your first 5
+- a chart of your last 30 sessions (correct, accuracy, or seconds per card), for your current settings, any other settings you've played, or all sessions
 - your most-missed notes and chords, with misses out of times seen
 - your 10 most recent sessions
 

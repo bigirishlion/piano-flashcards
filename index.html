@@ -85,6 +85,20 @@ h1 span { color: var(--felt); }
 .missed { display: flex; flex-wrap: wrap; gap: 6px; }
 .missed span { font: 500 12px var(--mono); padding: 3px 8px; border-radius: 6px; background: var(--felt-soft); color: var(--felt); }
 .toggle { background: none; border: 0; color: var(--muted); font: 500 12px var(--body); cursor: pointer; text-decoration: underline; padding: 0; }
+.hlinks { display: flex; align-items: baseline; gap: 14px; }
+.navlink { font: 600 14px var(--body); color: var(--felt); text-decoration: none; border-bottom: 1.5px solid currentColor; padding-bottom: 1px; }
+.navlink:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.view { display: grid; gap: 16px; min-width: 0; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.selwrap select { font: 600 13px var(--body); color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 7px 28px 7px 10px; max-width: 100%; }
+.selwrap { min-width: 0; max-width: 100%; }
+.trend { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.trend .pill { font: 700 13px var(--mono); padding: 4px 10px; border-radius: 999px; }
+.trend .up { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+.trend .down { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+.trend .flat { background: var(--line); color: var(--ink); }
+.trend span:last-child { color: var(--muted); }
+.statslink { justify-self: start; font: 600 14px var(--body); color: var(--felt); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .history { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
 .hhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .history h2 { font: 400 24px var(--display); margin: 0; }
@@ -124,9 +138,10 @@ h1 span { color: var(--felt); }
 <div class="wrap">
   <header>
     <h1>Grand Staff <span>Sprint</span></h1>
-    <div class="best" id="best">Best: —</div>
+    <div class="hlinks"><span class="best" id="best">Best: —</span><a class="navlink" id="navLink" href="#stats">Stats</a></div>
   </header>
 
+  <div class="view" id="practiceView">
   <div class="settings" id="settings">
     <div class="row"><span class="label">Clefs</span>
       <label class="chip"><input type="checkbox" id="optTreble" checked><span>𝄞 Treble</span></label>
@@ -181,11 +196,15 @@ h1 span { color: var(--felt); }
     <div class="hint" id="hint">Tap a letter or press A–G on your keyboard</div>
   </div>
 
-  <section class="history" id="history">
+  </div>
+
+  <section class="history view" id="statsView" hidden>
     <div class="hhead">
-      <h2>History</h2>
-      <div class="mini" id="scopeSeg"><button data-v="cfg" class="on">These settings</button><button data-v="all">All sessions</button></div>
+      <h2>Your progress</h2>
+      <label class="selwrap"><span class="vh">Show sessions for</span>
+        <select id="scopeSel"></select></label>
     </div>
+    <div class="trend" id="trend"></div>
     <div class="hsum" id="hSum"></div>
     <div class="hhead">
       <div class="label">Last 30 sessions</div>
@@ -270,6 +289,12 @@ h1 span { color: var(--felt); }
   }
 
   // ---------- staff drawing ----------
+  // Clef and accidental outlines from GNU FreeSerif (GPL + font exception), font units, y up.
+  const P_G = "M434 2Q464 -103 464 -170Q464 -223 427 -257Q390 -291 337 -291Q287 -291 250 -262Q213 -232 213 -190Q213 -160 234 -134Q254 -107 284 -107Q313 -107 332 -128Q350 -150 350 -178Q350 -240 280 -240Q298 -268 338 -268Q353 -268 368 -264Q384 -259 401 -248Q418 -237 428 -214Q439 -190 439 -157Q439 -136 411 -6Q389 -12 356 -12Q259 -12 190 60Q120 132 120 232Q120 267 132 303Q143 339 158 366Q172 394 200 428Q229 463 248 484Q268 504 303 539Q280 621 280 689Q280 779 313 840Q346 900 379 900Q389 900 402 887Q414 874 426 851Q438 828 446 790Q455 753 455 710Q455 551 342 447L368 329Q384 332 397 332Q458 332 500 282Q542 233 542 162Q542 44 434 2ZM426 746Q426 801 394 801Q358 801 333 748Q308 695 308 630Q308 588 321 557Q359 580 392 640Q426 699 426 746ZM498 128Q498 183 466 216Q434 249 383 249L428 23Q498 52 498 128ZM407 17 361 247Q334 241 312 214Q289 187 289 158Q289 143 295 128Q301 114 310 104Q318 94 327 86Q336 78 342 74Q348 71 348 71L340 66Q307 75 278 106Q248 137 248 184Q248 231 278 270Q307 310 343 323L325 430Q168 299 168 177Q168 104 223 55Q278 6 348 6Q365 6 407 17Z";
+  const P_F = "M564 704Q582 704 594 691Q607 678 607 661Q607 644 593 631Q579 618 563 618Q521 618 521 663Q521 681 534 692Q547 704 564 704ZM607 469Q607 450 594 437Q581 424 564 424Q521 424 521 469Q521 485 534 498Q546 511 564 511Q582 511 594 497Q607 483 607 469ZM285 757Q366 757 421 702Q476 646 476 569Q476 531 466 495Q455 459 432 426Q409 394 386 367Q363 340 326 313Q289 286 264 268Q239 249 196 226Q154 203 136 194Q117 184 80 166L75 182Q76 183 102 200Q128 217 144 228Q160 238 192 263Q223 288 244 310Q265 331 292 364Q318 396 334 427Q350 458 362 498Q373 538 373 578Q373 735 262 735Q225 735 199 726Q173 716 162 702Q150 688 145 678Q140 667 140 659Q140 644 160 644Q168 644 179 648Q190 651 194 651Q221 651 239 634Q257 617 257 592Q257 563 235 544Q213 525 183 525Q144 525 119 548Q94 571 94 607Q94 673 150 715Q207 757 285 757Z";
+  const P_SHARP = "M365 24 319 6V-193L275 -209V-10L138 -63V-262L94 -279V-80L50 -96V0L94 17V262L50 245V341L94 358V589L138 606V376L275 429V659L319 675V446L365 464V366L319 348V104L365 122ZM275 88V332L138 279V34Z";
+  const P_FLAT = "M222 441Q275 441 302 408Q329 375 329 317Q329 273 300 234Q270 195 192 117Q115 39 56 -34V783L99 802V402Q148 441 222 441ZM232 308Q232 373 183 373Q159 373 134 358Q110 344 99 319V87Q159 155 196 214Q232 274 232 308Z";
+
   const W = 360, H = 176, SP = 12, HS = 6, TOP = 52, BOT = TOP + 4 * SP, NX = 210;
   function staffSVG(card, state) {
     const c = CLEF[card.clef];
@@ -278,9 +303,10 @@ h1 span { color: var(--felt); }
     for (let i = 0; i < 5; i++) g += `<line x1="8" x2="${W - 8}" y1="${TOP + i * SP}" y2="${TOP + i * SP}" />`;
     g += `<line x1="8" x2="8" y1="${TOP}" y2="${BOT}" /><line x1="${W - 8}" x2="${W - 8}" y1="${TOP}" y2="${BOT}" />`;
     // clef glyph
+    // 1 staff space = 200 font units. Treble: bowl bottom (y=0) on the E line. Bass: dots straddle the F line (y≈567).
     g += card.clef === "treble"
-      ? `<text class="clef" x="14" y="${BOT - 3}" font-size="70">𝄞</text>`
-      : `<text class="clef" x="16" y="${BOT + 2}" font-size="68">𝄢</text>`;
+      ? `<path class="clef" transform="translate(8 ${BOT}) scale(.06 -.06)" d="${P_G}"/>`
+      : `<path class="clef" transform="translate(12 ${TOP + SP + 567 * .06}) scale(.06 -.06)" d="${P_F}"/>`;
     // ledger lines
     const steps = card.tones.map(t => t.step);
     const mn = Math.min(...steps), mx = Math.max(...steps);
@@ -292,7 +318,9 @@ h1 span { color: var(--felt); }
     for (const t of sorted) {
       if (!t.acc) continue;
       col = last !== null && last - t.step < 6 ? col + 1 : 0; last = t.step;
-      g += `<text class="acc" x="${NX - 22 - col * 13}" y="${y(t.step) + (t.acc > 0 ? 8 : 4)}" font-size="24" text-anchor="middle">${t.acc > 0 ? "♯" : "♭"}</text>`;
+      g += t.acc > 0
+        ? `<path class="acc" transform="translate(${NX - 29 - col * 13} ${y(t.step) + 198 * .038}) scale(.038 -.038)" d="${P_SHARP}"/>`
+        : `<path class="acc" transform="translate(${NX - 28 - col * 13} ${y(t.step) + 120 * .038}) scale(.038 -.038)" d="${P_FLAT}"/>`;
     }
     // whole-note heads
     const cls = state ? ` ${state}` : "";
@@ -301,7 +329,7 @@ h1 span { color: var(--felt); }
       g += `<g class="head${cls}" transform="translate(${NX} ${cy})"><ellipse rx="8.6" ry="5.8" /><ellipse class="hole" rx="4.2" ry="2.6" transform="rotate(-50)" /></g>`;
     }
     return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${card.clef} staff card">
-      <style>line{stroke:var(--ink);stroke-width:1.2}.ledger{stroke-width:1.4}.clef,.acc{fill:var(--ink);font-family:var(--music)}
+      <style>line{stroke:var(--ink);stroke-width:1.2}.ledger{stroke-width:1.4}.clef,.acc{fill:var(--ink)}
       .head ellipse{fill:var(--ink)}.head .hole{fill:var(--card)}.head.good ellipse:not(.hole){fill:var(--good)}.head.bad ellipse:not(.hole){fill:var(--bad)}</style>${g}</svg>`;
   }
 
@@ -438,6 +466,7 @@ h1 span { color: var(--felt); }
         <div><b>${S.bestStreak}</b><small>Best streak</small></div>
       </div>
       ${missed.length ? `<div><div class="label" style="margin-bottom:6px">Practice these</div><div class="missed">${missed.map(([k, n]) => `<span>${k}${n > 1 ? " ×" + n : ""}</span>`).join("")}</div></div>` : `<div class="label">No misses — try a shorter per-card limit.</div>`}`;
+    r.insertAdjacentHTML("beforeend", `<a class="statslink" href="#stats">See your progress →</a>`);
     r.hidden = false;
     $("overlay").hidden = false; $("startBtn").textContent = "Go again";
     showBest(); drawHistory();
@@ -445,7 +474,7 @@ h1 span { color: var(--felt); }
 
   // ---------- history ----------
   const HKEY = "gss-history";
-  const HV = { scope: "cfg", metric: "right" };
+  const HV = { scope: "", metric: "right" };
   function loadHist() { const h = store.get(HKEY); return Array.isArray(h) ? h : []; }
   function cfgLabel(o) {
     const clefs = o.treble && o.bass ? "Both clefs" : o.treble ? "Treble" : "Bass";
@@ -509,7 +538,26 @@ h1 span { color: var(--felt); }
   function drawHistory() {
     const all = loadHist();
     const key = configKey(S.o);
-    const rows = HV.scope === "cfg" ? all.filter(r => r.cfg === key) : all;
+    if (!HV.scope) HV.scope = key;
+    // dropdown: current settings first, then other settings you've played, then everything
+    const groups = new Map([[key, { label: cfgLabel(S.o), n: 0 }]]);
+    all.forEach(r => { const gr = groups.get(r.cfg) || { label: r.label, n: 0 }; gr.n++; groups.set(r.cfg, gr); });
+    if (HV.scope !== "all" && !groups.has(HV.scope)) HV.scope = key;
+    $("scopeSel").innerHTML = [...groups].map(([k, v]) => `<option value="${k}">${k === key ? "Current: " : ""}${v.label} (${v.n})</option>`).join("")
+      + `<option value="all">All sessions (${all.length})</option>`;
+    $("scopeSel").value = HV.scope;
+    const rows = HV.scope === "all" ? all : all.filter(r => r.cfg === HV.scope);
+    // trend: average of your latest 5 vs your first 5 (needs 6+ sessions)
+    const tm = METRIC[HV.metric], tr = $("trend");
+    if (rows.length >= 6) {
+      const k = Math.min(5, Math.floor(rows.length / 2)), avgOf = a => a.reduce((x, r) => x + tm.get(r), 0) / a.length;
+      const first = avgOf(rows.slice(0, k)), last = avgOf(rows.slice(-k));
+      let d = last - first; const better = HV.metric === "avg" ? d < 0 : d > 0;
+      const tiny = Math.abs(d) < (HV.metric === "avg" ? 0.05 : HV.metric === "acc" ? 1 : 0.5);
+      const shown = HV.metric === "avg" ? Math.abs(d).toFixed(1) + "s" : HV.metric === "acc" ? Math.abs(Math.round(d)) + " pts" : Math.abs(d).toFixed(1);
+      tr.innerHTML = tiny ? `<span class="pill flat">Steady</span><span>last ${k} sessions vs. first ${k}</span>`
+        : `<span class="pill ${better ? "up" : "down"}">${better ? "▲" : "▼"} ${HV.metric === "avg" ? (d < 0 ? "−" : "+") : (d > 0 ? "+" : "−")}${shown} ${HV.metric === "avg" ? "per card" : tm.name}</span><span>last ${k} sessions vs. first ${k}</span>`;
+    } else tr.innerHTML = `<span>${rows.length ? `Play ${6 - rows.length} more session${rows.length === 5 ? "" : "s"} with these settings to see your trend.` : "Play a session with these settings to start tracking."}</span>`;
     // summary
     const cards = rows.reduce((a, r) => a + r.total, 0), right = rows.reduce((a, r) => a + r.right, 0);
     const best = rows.length ? Math.max(...rows.map(r => r.right)) : 0;
@@ -531,10 +579,11 @@ h1 span { color: var(--felt); }
       : `<div class="hint" style="text-align:left">${rows.length ? "No misses yet." : "Notes you miss will collect here."}</div>`;
     // recent table
     const recent = rows.slice(-10).reverse();
+    const showSet = HV.scope === "all";
     $("hTable").innerHTML = recent.length
-      ? `<thead><tr><th>When</th>${HV.scope === "all" ? "<th>Settings</th>" : ""}<th class="num">Correct</th><th class="num">Acc.</th><th class="num">Sec/card</th></tr></thead><tbody>${
-        recent.map(r => `<tr><td>${fmtFull(r.t)}</td>${HV.scope === "all" ? `<td>${r.label}</td>` : ""}<td class="num">${r.right}/${r.total}</td><td class="num">${Math.round(100 * r.right / r.total)}%</td><td class="num">${r.avg.toFixed(1)}</td></tr>`).join("")}</tbody>`
-      : `<tbody><tr><td class="hint" style="text-align:left;border:0">${HV.scope === "cfg" && all.length ? "No sessions with these settings yet. Switch to All sessions to see the rest." : "No sessions yet."}</td></tr></tbody>`;
+      ? `<thead><tr><th>When</th>${showSet ? "<th>Settings</th>" : ""}<th class="num">Correct</th><th class="num">Acc.</th><th class="num">Sec/card</th></tr></thead><tbody>${
+        recent.map(r => `<tr><td>${fmtFull(r.t)}</td>${showSet ? `<td>${r.label}</td>` : ""}<td class="num">${r.right}/${r.total}</td><td class="num">${Math.round(100 * r.right / r.total)}%</td><td class="num">${r.avg.toFixed(1)}</td></tr>`).join("")}</tbody>`
+      : `<tbody><tr><td class="hint" style="text-align:left;border:0">${HV.scope !== "all" && all.length ? "No sessions with these settings yet. Pick other settings above to see the rest." : "No sessions yet."}</td></tr></tbody>`;
     $("clearBtn").hidden = !all.length;
   }
 
@@ -544,9 +593,19 @@ h1 span { color: var(--felt); }
     try { localStorage.setItem("gss-view", JSON.stringify(HV)); } catch {}
     drawHistory();
   });
-  seg("scopeSeg", "scope"); seg("metricSeg", "metric");
-  try { const v = JSON.parse(localStorage.getItem("gss-view")); if (v) { if (METRIC[v.metric]) HV.metric = v.metric; if (v.scope === "all") HV.scope = "all"; } } catch {}
-  document.querySelectorAll("#scopeSeg button").forEach(b => b.classList.toggle("on", b.dataset.v === HV.scope));
+  seg("metricSeg", "metric");
+  $("scopeSel").addEventListener("change", e => { HV.scope = e.target.value; drawHistory(); });
+  try { const v = JSON.parse(localStorage.getItem("gss-view")); if (v && METRIC[v.metric]) HV.metric = v.metric; } catch {}
+  // Stats view, reachable at #stats
+  function route() {
+    const stats = location.hash === "#stats";
+    if (stats && S.running) { history.replaceState(null, "", "#"); return; }
+    $("statsView").hidden = !stats; $("practiceView").hidden = stats;
+    $("navLink").textContent = stats ? "← Practice" : "Stats";
+    $("navLink").setAttribute("href", stats ? "#" : "#stats");
+    if (stats) { HV.scope = configKey(opts()); drawHistory(); window.scrollTo(0, 0); }
+  }
+  window.addEventListener("hashchange", route);
   document.querySelectorAll("#metricSeg button").forEach(b => b.classList.toggle("on", b.dataset.v === HV.metric));
   $("clearBtn").addEventListener("click", () => { $("clearAsk").hidden = false; $("clearBtn").hidden = true; });
   $("clearNo").addEventListener("click", () => { $("clearAsk").hidden = true; $("clearBtn").hidden = false; });
@@ -571,6 +630,7 @@ h1 span { color: var(--felt); }
   document.addEventListener("keydown", e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key.toUpperCase();
+    if (!$("statsView").hidden) return;
     if (!S.running && (e.key === "Enter" || e.key === " ") && document.activeElement === document.body) { e.preventDefault(); return start(); }
     if (!S.running) return;
     if (LET.includes(k) && k.length === 1) { e.preventDefault(); answerNote(k); }
@@ -584,7 +644,7 @@ h1 span { color: var(--felt); }
 
   // Resting state: a sample card so the page shows what it does.
   S.card = { kind: "note", clef: "treble", tones: [{ step: 32, acc: 0 }], letter: "G", label: "G4" };
-  render(); showBest(); hud(); drawHistory();
+  render(); showBest(); hud(); drawHistory(); route();
 })();
 </script>
 
