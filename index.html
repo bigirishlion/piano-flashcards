@@ -99,6 +99,12 @@ h1 span { color: var(--felt); }
 .trend .flat { background: var(--line); color: var(--ink); }
 .trend span:last-child { color: var(--muted); }
 .statslink { justify-self: start; font: 600 14px var(--body); color: var(--felt); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.micnote { font-size: 12px; color: var(--muted); flex-basis: 100%; padding-left: 72px; }
+.micnote.err { color: var(--bad); }
+.micbar { display: flex; align-items: center; justify-content: center; gap: 8px; font: 500 12px var(--mono); color: var(--muted); padding-bottom: 8px; }
+.micbar .lvl { width: 46px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; display: block; }
+.micbar .lvl b { display: block; height: 100%; width: 0; background: var(--good); }
+@media (max-width: 420px) { .micnote { padding-left: 0; } }
 .history { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
 .hhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .history h2 { font: 400 24px var(--display); margin: 0; }
@@ -163,7 +169,11 @@ h1 span { color: var(--felt); }
       <label class="chip"><input type="radio" name="lim" id="lim3" value="3"><span>3 s</span></label>
       <label class="chip"><input type="radio" name="lim" id="lim5" value="5"><span>5 s</span></label>
       <label class="chip"><input type="radio" name="lim" id="lim10" value="10"><span>10 s</span></label>
+    </div>
+    <div class="row"><span class="label">Audio</span>
       <label class="chip"><input type="checkbox" id="optSound" checked><span>Sound</span></label>
+      <label class="chip"><input type="checkbox" id="optMic"><span>Piano mic</span></label>
+      <span class="micnote" id="micNote" hidden></span>
     </div>
   </div>
 
@@ -179,6 +189,7 @@ h1 span { color: var(--felt); }
     <div id="staff"></div>
     <div class="cardbar"><i id="cardBar" style="transform:scaleX(0)"></i></div>
     <div class="prompt" id="prompt">Name the note</div>
+    <div class="micbar" id="micBar" hidden><i class="lvl"><b id="micLvl"></b></i><span id="micText">Listening</span></div>
     <div class="overlay" id="overlay"><button class="start" id="startBtn">Start</button></div>
   </div>
 
@@ -252,7 +263,7 @@ h1 span { color: var(--felt); }
       notes: $("optNotes").checked, chords: $("optChords").checked, inv: $("optInv").checked,
       dur: +document.querySelector("input[name=dur]:checked").value,
       lim: +document.querySelector("input[name=lim]:checked").value,
-      sound: $("optSound").checked,
+      sound: $("optSound").checked, mic: $("optMic").checked,
     };
   }
   function buildChord(clef, rootIdx, qual, inv) {
@@ -334,30 +345,120 @@ h1 span { color: var(--felt); }
   }
 
   // ---------- sound ----------
-  let ctx = null;
+  let ctx = null, out = null;
+  // iPhones mute Web Audio when the ring/silent switch is on unless the page asks for media playback.
+  function audioSession(kind) { try { if (navigator.audioSession) navigator.audioSession.type = kind; } catch {} }
+  let unlockEl = null;
+  function unlockAudio() {
+    audioSession(S.o.mic ? "play-and-record" : "playback");
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state !== "running") ctx.resume();
+      if (!out) {
+        const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+        out = ctx.createGain(); out.gain.value = 0.9; out.connect(comp).connect(ctx.destination);
+      }
+      // Older iOS: playing a silent media element moves audio onto the media channel.
+      if (!navigator.audioSession && !unlockEl) {
+        unlockEl = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=");
+        unlockEl.loop = true; unlockEl.play().catch(() => {});
+      }
+    } catch {}
+  }
+  function tone(midi, at, vol) {
+    const f = 440 * Math.pow(2, (midi - 69) / 12);
+    // Piano-like: several harmonics, upper ones fade faster. Harmonics also make low bass notes audible on phone speakers.
+    [[1, 1, 1.6], [2, .55, 1.1], [3, .3, .8], [4, .18, .6], [5, .1, .45], [6, .06, .35]].forEach(([h, a, dec]) => {
+      if (f * h > 9000) return;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = f * h;
+      g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol * a, at + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + dec);
+      o.connect(g).connect(out); o.start(at); o.stop(at + dec + 0.05);
+    });
+  }
   function play(card) {
     if (!S.o.sound) return;
     try {
-      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-      const now = ctx.currentTime;
-      card.tones.forEach(t => {
-        const f = 440 * Math.pow(2, (midiOf(t.step, t.acc) - 69) / 12);
-        for (const [type, mult, vol] of [["triangle", 1, 0.22], ["sine", 2, 0.06]]) {
-          const o = ctx.createOscillator(), gn = ctx.createGain();
-          o.type = type; o.frequency.value = f * mult;
-          gn.gain.setValueAtTime(0, now); gn.gain.linearRampToValueAtTime(vol / card.tones.length * 1.6, now + 0.01);
-          gn.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
-          o.connect(gn).connect(ctx.destination); o.start(now); o.stop(now + 1.5);
-        }
-      });
+      unlockAudio();
+      const now = ctx.currentTime + 0.02;
+      card.tones.forEach((t, i) => tone(midiOf(t.step, t.acc), now + i * 0.03, 0.32 / Math.sqrt(card.tones.length)));
     } catch {}
+  }
+
+  // ---------- microphone ----------
+  const Mic = { on: false, stream: null, an: null, buf: null, timer: null, onset: 0, run: [], hist: [], lastHeard: "" };
+  // YIN pitch detector. Returns { f, clarity } or null.
+  function yin(buf, sr) {
+    const W = Math.floor(buf.length / 2), minT = Math.floor(sr / 1400), maxT = Math.min(W - 1, Math.floor(sr / 58));
+    const d = new Float32Array(maxT + 2);
+    for (let t = 1; t <= maxT + 1; t++) { let sum = 0; for (let i = 0; i < W; i++) { const x = buf[i] - buf[i + t]; sum += x * x; } d[t] = sum; }
+    let run = 0; const c = new Float32Array(maxT + 2); c[0] = 1;
+    for (let t = 1; t <= maxT + 1; t++) { run += d[t]; c[t] = run ? d[t] * t / run : 1; }
+    let tau = -1;
+    for (let t = minT; t <= maxT; t++) if (c[t] < 0.15) { while (t + 1 <= maxT && c[t + 1] < c[t]) t++; tau = t; break; }
+    if (tau < 0) return null;
+    const a = c[tau - 1], b = c[tau], cc = c[tau + 1], den = a + cc - 2 * b;
+    const shift = den ? (a - cc) / (2 * den) : 0;
+    return { f: sr / (tau + shift), clarity: 1 - b };
+  }
+  const midiName = m => { const n = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"][m % 12]; return n + (Math.floor(m / 12) - 1); };
+  function micNote(text, err) { const n = $("micNote"); n.hidden = !text; n.textContent = text || ""; n.classList.toggle("err", !!err); }
+  async function micStart() {
+    if (Mic.on) return true;
+    if (!navigator.mediaDevices?.getUserMedia) { micNote("This browser can't use the microphone here. Open the GitHub site in Safari or Chrome.", true); return false; }
+    try {
+      unlockAudio(); audioSession("play-and-record");
+      Mic.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      if (ctx.state !== "running") await ctx.resume();
+      const src = ctx.createMediaStreamSource(Mic.stream);
+      Mic.an = ctx.createAnalyser(); Mic.an.fftSize = 2048; src.connect(Mic.an);
+      Mic.buf = new Float32Array(Mic.an.fftSize);
+      Mic.on = true; Mic.hist = [];
+      clearInterval(Mic.timer); Mic.timer = setInterval(micTick, 30);
+      micNote("Listening. Play a key to test it.");
+      $("micBar").hidden = false; drawPad();
+      return true;
+    } catch (e) {
+      micNote(e && e.name === "NotAllowedError" ? "Microphone blocked. Allow mic access for this site in your browser settings, then turn Piano mic on again." : "Couldn't start the microphone.", true);
+      $("optMic").checked = false; return false;
+    }
+  }
+  function micStop() {
+    clearInterval(Mic.timer); Mic.on = false;
+    try { Mic.stream && Mic.stream.getTracks().forEach(t => t.stop()); } catch {}
+    Mic.stream = null; $("micBar").hidden = true; micNote(""); audioSession("playback"); drawPad();
+  }
+  function micTick() {
+    if (!Mic.on) return;
+    Mic.an.getFloatTimeDomainData(Mic.buf);
+    let rms = 0; for (const v of Mic.buf) rms += v * v; rms = Math.sqrt(rms / Mic.buf.length);
+    const now = performance.now();
+    // onset = a fresh key strike: level jumps well above the recent average
+    const avg = Mic.hist.length ? Mic.hist.reduce((a, b) => a + b, 0) / Mic.hist.length : 0;
+    Mic.hist.push(rms); if (Mic.hist.length > 8) Mic.hist.shift();
+    if (rms > 0.008 && rms > avg * 1.8) { Mic.onset = now; Mic.run = []; }
+    $("micLvl").style.width = Math.min(100, rms * 900) + "%";
+    if (rms < 0.004) return;
+    const r = yin(Mic.buf, ctx.sampleRate);
+    if (!r || r.clarity < 0.8) return;
+    const m = 69 + 12 * Math.log2(r.f / 440), midi = Math.round(m);
+    if (Math.abs(m - midi) > 0.4 || midi < 34 || midi > 90) return;
+    Mic.run.push(midi); if (Mic.run.length > 6) Mic.run.shift();
+    const k = Mic.run.length, stable = n => k >= n && Mic.run.slice(-n).every(x => x === midi);
+    if (stable(2)) $("micText").textContent = "Heard " + midiName(midi);
+    if (!S.running || S.locked || !S.card || S.card.kind !== "note" || !S.o.mic) return;
+    if (!Mic.onset || Mic.onset < S.cardStart + 120 || now - Mic.onset > 900) return;
+    const target = midiOf(S.card.tones[0].step, 0);
+    if (midi === target && stable(3)) { Mic.onset = 0; judge(true); }
+    else if (midi !== target && stable(5)) { Mic.onset = 0; judge(false, false, midiName(midi)); }
   }
 
   // ---------- game state ----------
   const S = { o: opts(), running: false, deck: [], card: null, prev: null, ans: {}, locked: false,
     right: 0, total: 0, streak: 0, bestStreak: 0, times: [], missed: {}, seen: {}, end: 0, cardStart: 0, timer: null };
 
-  const configKey = o => `gss-best:${[o.treble && "T", o.bass && "B", o.notes && "N", o.chords && "C", o.inv && "I"].filter(Boolean).join("")}:${o.dur}:${o.lim}`;
+  const configKey = o => `gss-best:${[o.treble && "T", o.bass && "B", o.notes && "N", o.chords && "C", o.inv && "I"].filter(Boolean).join("")}:${o.dur}:${o.lim}${o.mic ? ":mic" : ""}`;
   function showBest() {
     const b = store.get(configKey(S.o));
     $("best").textContent = b ? `Best for these settings: ${b}` : "Best: —";
@@ -372,7 +473,7 @@ h1 span { color: var(--felt); }
     document.querySelectorAll("#qualRow button").forEach(b => b.classList.toggle("on", S.ans.qual === b.dataset.q));
     document.querySelectorAll("#invRow button").forEach(b => b.classList.toggle("on", S.ans.inv === +b.dataset.i));
     $("goBtn").disabled = !(S.ans.root && S.ans.qual && (!S.o.inv || S.ans.inv !== undefined));
-    $("hint").textContent = chord ? "Pick the root, quality" + (S.o.inv ? ", and inversion" : "") + " — then submit (Enter)" : "Tap a letter or press A–G on your keyboard";
+    $("hint").textContent = chord ? "Pick the root, quality" + (S.o.inv ? ", and inversion" : "") + " — then submit (Enter)" : S.o.mic && Mic.on ? "Play the note on your piano — or tap a letter" : "Tap a letter or press A–G on your keyboard";
   }
   function render(state) {
     $("staff").innerHTML = staffSVG(S.card, state);
@@ -382,7 +483,7 @@ h1 span { color: var(--felt); }
 
   function nextCard() {
     let c; do { c = S.deck[Math.floor(Math.random() * S.deck.length)]; } while (S.deck.length > 1 && c === S.prev);
-    S.prev = S.card = c; S.ans = {}; S.locked = false; S.cardStart = performance.now();
+    S.prev = S.card = c; S.ans = {}; S.locked = false; S.cardStart = performance.now(); Mic.onset = 0; Mic.run = [];
     render();
   }
 
@@ -402,7 +503,7 @@ h1 span { color: var(--felt); }
     if (S.running && left <= 0 && !S.locked) finish();
   }
 
-  function judge(ok, timedOut = false) {
+  function judge(ok, timedOut = false, heard = "") {
     if (S.locked || !S.running) return;
     S.locked = true; S.total++;
     S.seen[S.card.label] = (S.seen[S.card.label] || 0) + 1;
@@ -412,7 +513,7 @@ h1 span { color: var(--felt); }
     render(ok ? "good" : "bad");
     const p = $("prompt");
     p.className = "prompt " + (ok ? "good" : "bad");
-    p.textContent = ok ? `✓ ${S.card.label}` : `${timedOut ? "Time — " : "✗ "}it was ${S.card.label}`;
+    p.textContent = ok ? `✓ ${S.card.label}` : `${timedOut ? "Time — " : heard ? `✗ You played ${heard} — ` : "✗ "}it was ${S.card.label}`;
     play(S.card);
     hud();
     setTimeout(() => { if (!S.running) return; if (performance.now() >= S.end) finish(); else nextCard(); }, ok ? 450 : 1300);
@@ -437,7 +538,7 @@ h1 span { color: var(--felt); }
     Object.assign(S, { running: true, right: 0, total: 0, streak: 0, bestStreak: 0, times: [], missed: {}, seen: {}, end: performance.now() + S.o.dur * 1000 });
     $("overlay").hidden = true; $("results").hidden = true;
     document.querySelectorAll("#settings input").forEach(i => i.disabled = true);
-    try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); } catch {}
+    unlockAudio();
     nextCard();
     clearInterval(S.timer); S.timer = setInterval(hud, 50); hud();
   }
@@ -480,7 +581,7 @@ h1 span { color: var(--felt); }
     const clefs = o.treble && o.bass ? "Both clefs" : o.treble ? "Treble" : "Bass";
     const kinds = [o.notes && "Notes", o.chords && "Chords", o.inv && "Inversions"].filter(Boolean).join(" + ");
     const dur = o.dur >= 60 ? `${o.dur / 60} min` : `${o.dur} s`;
-    return `${clefs} · ${kinds} · ${dur}${o.lim ? ` · ${o.lim}s/card` : ""}`;
+    return `${clefs} · ${kinds} · ${dur}${o.lim ? ` · ${o.lim}s/card` : ""}${o.mic ? " · Piano mic" : ""}`;
   }
   const fmtDate = t => new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const fmtFull = t => new Date(t).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -622,6 +723,8 @@ h1 span { color: var(--felt); }
     S.o = opts(); showBest(); hud(); drawHistory();
   }
   document.querySelectorAll("#settings input").forEach(i => i.addEventListener("change", syncInv));
+  $("optSound").addEventListener("change", e => { if (e.target.checked) { S.o = opts(); play({ tones: [{ step: 28, acc: 0 }, { step: 30, acc: 0 }, { step: 32, acc: 0 }] }); } });
+  $("optMic").addEventListener("change", e => { if (e.target.checked) micStart(); else micStop(); });
   $("startBtn").addEventListener("click", start);
   $("keys").addEventListener("click", e => { const b = e.target.closest("button"); if (b) answerNote(b.dataset.l); });
   $("qualRow").addEventListener("click", e => { const b = e.target.closest("button"); if (b && S.running && !S.locked) { S.ans.qual = b.dataset.q; drawPad(); } });
