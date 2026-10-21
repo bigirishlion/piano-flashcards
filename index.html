@@ -66,8 +66,8 @@ h1 span { color: var(--felt); }
 .start:focus-visible, button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 .pad { display: grid; gap: 10px; }
-.keys { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.keys button { font: 600 20px var(--display); height: 64px; border-radius: 0 0 10px 10px; border: 1px solid var(--key-edge); border-top: 3px solid var(--ink); background: var(--key); color: var(--ink); cursor: pointer; }
+.keys { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.keys button { font: 600 28px var(--display); height: 88px; border-radius: 0 0 10px 10px; border: 1px solid var(--key-edge); border-top: 3px solid var(--ink); background: var(--key); color: var(--ink); cursor: pointer; }
 .keys button:active { transform: translateY(1px); }
 .keys button.on { background: var(--ink); color: var(--paper); }
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
@@ -131,7 +131,7 @@ h1 span { color: var(--felt); }
 .clearrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
 .clearrow .danger { font: 600 12px var(--body); border: 0; border-radius: 8px; background: var(--bad); color: #fff; padding: 6px 12px; cursor: pointer; }
 .clearrow .plain { font: 600 12px var(--body); border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); padding: 5px 12px; cursor: pointer; }
-@media (max-width: 420px) { .keys button { height: 56px; font-size: 18px; } .stat b { font-size: 18px; } }
+@media (max-width: 420px) { .keys button { height: 80px; font-size: 26px; } .stat b { font-size: 18px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
