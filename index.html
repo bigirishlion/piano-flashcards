@@ -485,6 +485,8 @@ h1 span { color: var(--felt); }
     let c; do { c = S.deck[Math.floor(Math.random() * S.deck.length)]; } while (S.deck.length > 1 && c === S.prev);
     S.prev = S.card = c; S.ans = {}; S.locked = false; S.cardStart = performance.now(); Mic.onset = 0; Mic.run = [];
     render();
+    // Play the note as it appears. With Piano mic on, wait until after the answer so the mic doesn't hear the app.
+    if (!S.o.mic) play(c);
   }
 
   function hud() {
@@ -514,7 +516,7 @@ h1 span { color: var(--felt); }
     const p = $("prompt");
     p.className = "prompt " + (ok ? "good" : "bad");
     p.textContent = ok ? `✓ ${S.card.label}` : `${timedOut ? "Time — " : heard ? `✗ You played ${heard} — ` : "✗ "}it was ${S.card.label}`;
-    play(S.card);
+    if (S.o.mic) play(S.card);
     hud();
     setTimeout(() => { if (!S.running) return; if (performance.now() >= S.end) finish(); else nextCard(); }, ok ? 450 : 1300);
   }

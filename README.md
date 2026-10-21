@@ -12,7 +12,7 @@ Timed piano note-reading flashcards. Open `index.html` in any browser, or serve 
 - Notes: tap a letter or press A–G on your keyboard.
 - Chords: pick root, Major/Minor (keys M / m), inversion (keys 0 / 1 / 2), then Submit (Enter).
 - **Piano mic** (optional): turn it on and play the note on a real piano. You must play the exact key (G3 is not G4). Works on single notes; chords are still answered by tapping. Mic sessions are tracked separately in Stats.
-- **Sound** plays the note after each answer. On iPhone it plays even with the silent switch on (iOS 17+).
+- **Sound** plays each note as it appears (with Piano mic on, after you answer, so the mic doesn't hear the app). On iPhone it plays even with the silent switch on (iOS 17+).
 - Results show score, accuracy, average time per card, best streak and the cards you missed.
 
 ## Stats
