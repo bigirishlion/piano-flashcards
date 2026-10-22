@@ -24,5 +24,8 @@ Every finished session is saved in your browser's local storage (per device). Ta
 
 **Clear history** deletes all saved sessions and best scores on that device.
 
+## Editing
+`app.html` holds the app. Run `./build.sh` to regenerate `index.html` (adds the page head and icons).
+
 ## Publish with GitHub Pages
 Settings → Pages → Source: *Deploy from a branch* → `main` / root. The app will be at `https://<user>.github.io/<repo>/`.
