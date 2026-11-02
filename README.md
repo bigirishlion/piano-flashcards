@@ -3,6 +3,7 @@
 Timed piano note-reading flashcards. Open `index.html` in any browser, or serve it with GitHub Pages.
 
 ## What it drills
+Every card is drawn on a full grand staff (treble and bass staves joined by a brace); each note sits on its own clef's staff.
 - **33 single notes**: treble clef A3–C6 (17 notes) and bass clef C2–D4 (16 notes), including ledger lines and middle C on both staves.
 - **Chords** (optional): major and minor triads on C, D, E, F, G, A, B, in either clef.
 - **Inversions** (optional): root position, 1st and 2nd inversion.

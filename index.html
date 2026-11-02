@@ -311,18 +311,25 @@ h1 span { color: var(--felt); }
   const P_SHARP = "M365 24 319 6V-193L275 -209V-10L138 -63V-262L94 -279V-80L50 -96V0L94 17V262L50 245V341L94 358V589L138 606V376L275 429V659L319 675V446L365 464V366L319 348V104L365 122ZM275 88V332L138 279V34Z";
   const P_FLAT = "M222 441Q275 441 302 408Q329 375 329 317Q329 273 300 234Q270 195 192 117Q115 39 56 -34V783L99 802V402Q148 441 222 441ZM232 308Q232 373 183 373Q159 373 134 358Q110 344 99 319V87Q159 155 196 214Q232 274 232 308Z";
 
-  const W = 360, H = 176, SP = 12, HS = 6, TOP = 52, BOT = TOP + 4 * SP, NX = 210;
+  const P_BRACE = "M203 225Q203 206 172 148Q140 91 140 63Q140 8 230 -10L224 -24Q68 -16 68 86Q68 122 98 191Q129 260 129 267Q129 303 38 361V375Q129 433 129 468Q129 475 98 544Q68 614 68 649Q68 752 224 759L230 746Q140 726 140 674Q140 645 172 588Q203 530 203 512Q203 424 80 368Q203 312 203 225Z"; // FreeSerif brace, bounds x 38..230, y -24..759
+  // Grand staff: treble staff on top, bass staff below, joined by a brace. Each note sits on its own clef's staff.
+  const W = 360, SP = 12, HS = 6, NX = 214, X0 = 30;
+  const TT = 42, TB = TT + 4 * SP;          // treble staff top / bottom line (E4)
+  const BT = TB + 5 * SP, BB = BT + 4 * SP; // bass staff top / bottom line (G2); 5-space gap fits ledger notes like middle C
+  const H = BB + 40;
+  const STAFF = { treble: { bot: TB }, bass: { bot: BB } };
   function staffSVG(card, state) {
-    const c = CLEF[card.clef];
-    const y = s => BOT - (s - c.bottom) * HS;
+    const c = CLEF[card.clef], base = STAFF[card.clef].bot;
+    const y = s => base - (s - c.bottom) * HS;
     let g = "";
-    for (let i = 0; i < 5; i++) g += `<line x1="8" x2="${W - 8}" y1="${TOP + i * SP}" y2="${TOP + i * SP}" />`;
-    g += `<line x1="8" x2="8" y1="${TOP}" y2="${BOT}" /><line x1="${W - 8}" x2="${W - 8}" y1="${TOP}" y2="${BOT}" />`;
-    // clef glyph
-    // 1 staff space = 200 font units. Treble: bowl bottom (y=0) on the E line. Bass: dots straddle the F line (y≈567).
-    g += card.clef === "treble"
-      ? `<path class="clef" transform="translate(8 ${BOT}) scale(.06 -.06)" d="${P_G}"/>`
-      : `<path class="clef" transform="translate(12 ${TOP + SP + 567 * .06}) scale(.06 -.06)" d="${P_F}"/>`;
+    for (const top of [TT, BT]) for (let i = 0; i < 5; i++) g += `<line x1="${X0}" x2="${W - 8}" y1="${top + i * SP}" y2="${top + i * SP}" />`;
+    // system line and final barline span both staves
+    g += `<line class="sys" x1="${X0}" x2="${X0}" y1="${TT - .6}" y2="${BB + .6}" /><line x1="${W - 8}" x2="${W - 8}" y1="${TT}" y2="${BB}" />`;
+    const bs = (BB - TT + 2) / 783, bx = bs * .42;
+    g += `<path class="clef" transform="translate(${X0 - 4 - 230 * bx} ${TT - 1 + 759 * bs}) scale(${bx} ${-bs})" d="${P_BRACE}"/>`;
+    // clefs: 1 staff space = 200 font units. Treble bowl (y=0) on the E line; bass dots straddle the F line (y≈567).
+    g += `<path class="clef" transform="translate(${X0 + 2} ${TB}) scale(.06 -.06)" d="${P_G}"/>`;
+    g += `<path class="clef" transform="translate(${X0 + 6} ${BT + SP + 567 * .06}) scale(.06 -.06)" d="${P_F}"/>`;
     // ledger lines
     const steps = card.tones.map(t => t.step);
     const mn = Math.min(...steps), mx = Math.max(...steps);
@@ -344,8 +351,8 @@ h1 span { color: var(--felt); }
       const cy = y(t.step);
       g += `<g class="head${cls}" transform="translate(${NX} ${cy})"><ellipse rx="8.6" ry="5.8" /><ellipse class="hole" rx="4.2" ry="2.6" transform="rotate(-50)" /></g>`;
     }
-    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${card.clef} staff card">
-      <style>line{stroke:var(--ink);stroke-width:1.2}.ledger{stroke-width:1.4}.clef,.acc{fill:var(--ink)}
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grand staff card, note on the ${card.clef} staff">
+      <style>line{stroke:var(--ink);stroke-width:1.2}.sys{stroke-width:1.6}.ledger{stroke-width:1.4}.clef,.acc{fill:var(--ink)}
       .head ellipse{fill:var(--ink)}.head .hole{fill:var(--card)}.head.good ellipse:not(.hole){fill:var(--good)}.head.bad ellipse:not(.hole){fill:var(--bad)}</style>${g}</svg>`;
   }
 
