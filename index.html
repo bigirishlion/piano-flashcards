@@ -250,7 +250,7 @@ h1 span { color: var(--felt); }
   // Diatonic step = letterIndex + 7 * octave. Treble bottom line E4, bass bottom line G2.
   const CLEF = {
     treble: { bottom: 30, lo: 26, hi: 42 },   // A3 … C6  (17 notes)
-    bass:   { bottom: 18, lo: 14, hi: 29 },   // C2 … D4  (16 notes)
+    bass:   { bottom: 18, lo: 14, hi: 30 },   // C2 … E4  (17 notes); A3–E4 also on treble, so in-between notes land on either staff
   };
   const $ = id => document.getElementById(id);
   const store = {
